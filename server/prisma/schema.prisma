@@ -1,0 +1,106 @@
+// ============================================================================
+// Prisma Schema — PostgreSQL Database Definition
+// ============================================================================
+// This file defines the PostgreSQL database structure using Prisma ORM.
+//
+// WHY PRISMA?
+// - Type-safe database queries (auto-generated TypeScript types)
+// - Declarative schema with automatic migrations
+// - Built-in relation handling
+// - Excellent developer experience with Prisma Studio
+//
+// WHY POSTGRESQL for these tables?
+// - Users, chats, messages have clear RELATIONSHIPS (foreign keys)
+// - ACID transactions ensure data consistency (e.g., a message always
+//   belongs to a valid user and chat)
+// - Strong data integrity with constraints (unique emails, cascading deletes)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── User Table ──────────────────────────────────────────────────────────────
+// Stores registered user accounts.
+// Each user can participate in many chats and send many messages.
+model User {
+  id        String   @id @default(uuid())  // UUID primary key
+  username  String   @unique               // Must be unique across all users
+  email     String   @unique               // Must be unique, used for login
+  password  String                         // Bcrypt-hashed password
+  avatar    String?                         // Profile avatar URL (optional)
+  bio       String?                         // Short biography (optional)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  chatParticipants ChatParticipant[]       // Chats this user is part of
+  sentMessages     Message[]               // Messages sent by this user
+  createdGroups    Chat[]  @relation("GroupCreator") // Groups created by this user
+
+  @@map("users")                           // Actual table name in PostgreSQL
+}
+
+// ── Chat Table ──────────────────────────────────────────────────────────────
+// Represents a conversation — either 1-on-1 or a group chat.
+// A chat is a container for messages and participants.
+model Chat {
+  id          String   @id @default(uuid())
+  isGroup     Boolean  @default(false) @map("is_group")     // false = 1-on-1, true = group
+  name        String?                                        // Group name (null for 1-on-1)
+  createdById String?  @map("created_by_id")                 // Who created the group
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  createdBy    User?             @relation("GroupCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  participants ChatParticipant[]           // Users in this chat
+  messages     Message[]                   // All messages in this chat
+
+  @@map("chats")
+}
+
+// ── ChatParticipant (Junction Table) ────────────────────────────────────────
+// Links users to chats (many-to-many relationship).
+// For 1-on-1 chats: exactly 2 participants.
+// For groups: 2+ participants, each with a role.
+model ChatParticipant {
+  id     String @id @default(uuid())
+  chatId String @map("chat_id")
+  userId String @map("user_id")
+  role   String @default("member")         // "admin" or "member" (relevant for groups)
+
+  // Relations (with cascading deletes)
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])               // A user can only be in a chat once
+  @@index([userId])                         // Fast lookup: "which chats does this user belong to?"
+  @@map("chat_participants")
+}
+
+// ── Message Table ───────────────────────────────────────────────────────────
+// Stores individual chat messages.
+// Each message belongs to one chat and was sent by one user.
+model Message {
+  id        String    @id @default(uuid())
+  content   String                         // The message text
+  chatId    String   @map("chat_id")
+  senderId  String   @map("sender_id")
+  deletedAt DateTime? @map("deleted_at")   // Soft delete timestamp (null = active)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations (with cascading deletes)
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])             // Fast message pagination per chat
+  @@index([senderId])                       // Fast lookup: "messages sent by user"
+  @@map("messages")
+}

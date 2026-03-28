@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    /* ── Language & Environment ── */
+    "target": "ES2022",            // Modern JS features (top-level await, etc.)
+    "module": "Node16",             // Node16 module system for compatibility
+    "lib": ["ES2022"],             // Standard library typings
+
+    /* ── Output ── */
+    "outDir": "./dist",            // Compiled JS goes here
+    "rootDir": "./src",            // Source files live here
+    "declaration": true,           // Emit .d.ts declaration files
+    "sourceMap": true,             // Emit source maps for debugging
+
+    /* ── Strict Type-Checking ── */
+    "strict": true,                // Enable ALL strict checks
+    "noImplicitAny": true,         // Error on implicit 'any' types
+    "strictNullChecks": true,      // null/undefined are distinct types
+    "strictFunctionTypes": true,   // Strict function parameter checking
+
+    /* ── Module Resolution ── */
+    "esModuleInterop": true,       // Allow default imports from CJS modules
+    "moduleResolution": "node16",   // Use Node.js module resolution algorithm
+    "skipLibCheck": true,          // Skip type-checking .d.ts files (faster)
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true      // Allow importing .json files
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
